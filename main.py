@@ -6,13 +6,12 @@ from huggingface_hub import HfApi
 
 app = FastAPI(title="AI Business Gateway")
 
-# استدعاء متغيرات البيئة من Render
 HF_TOKEN = os.getenv("HF_TOKEN")
 DATASET_REPO = os.getenv("DATASET_REPO")
 
-# نموذج Hugging Face المجاني المستهدف للتوليد
-HF_MODEL = "mistralai/Mistral-7B-Instruct-v0.2"
-HF_INFERENCE_URL = f"https://api-inference.huggingface.co/models/{HF_MODEL}"
+# الرابط الجديد المعتمد لـ Hugging Face Inference API
+HF_INFERENCE_URL = "https://router.huggingface.co/hf-inference/v1/chat/completions"
+MODEL_NAME = "mistralai/Mistral-7B-Instruct-v0.2"
 
 class QueryRequest(BaseModel):
     prompt: str
@@ -32,14 +31,14 @@ def generate_response(request: QueryRequest):
     }
     
     payload = {
-        "inputs": request.prompt,
-        "parameters": {
-            "max_new_tokens": 256,
-            "return_full_text": False
-        }
+        "model": MODEL_NAME,
+        "messages": [
+            {"role": "user", "content": request.prompt}
+        ],
+        "max_tokens": 256
     }
 
-    # 1. إرسال الطلب لـ Hugging Face Inference API
+    # 1. الاتصال بـ Hugging Face API
     try:
         response = requests.post(HF_INFERENCE_URL, headers=headers, json=payload, timeout=30)
         response_data = response.json()
@@ -47,22 +46,20 @@ def generate_response(request: QueryRequest):
         if response.status_code != 200:
             raise HTTPException(status_code=response.status_code, detail=f"HuggingFace API Error: {response_data}")
 
-        # استخراج النص المولد
-        if isinstance(response_data, list) and len(response_data) > 0:
-            generated_text = response_data[0].get("generated_text", "")
-        else:
-            generated_text = str(response_data)
+        # استخراج النص المولد من استجابة Chat Completion
+        generated_text = response_data['choices'][0]['message']['content']
 
     except requests.exceptions.RequestException as e:
         raise HTTPException(status_code=500, detail=f"Failed to connect to HuggingFace API: {str(e)}")
+    except (KeyError, IndexError) as e:
+        raise HTTPException(status_code=500, detail=f"Unexpected response format: {response_data}")
 
-    # 2. حفظ النتيجة اختياري في مستودع البيانات السحابي (Dataset/Repo)
+    # 2. حفظ النتيجة سحابياً في Dataset
     upload_status = "skipped"
     if DATASET_REPO:
         try:
             api = HfApi(token=HF_TOKEN)
             log_content = f"Prompt: {request.prompt}\nResponse: {generated_text}\n"
-            # حفظ العملية في ملف نصي داخل المستودع
             api.upload_file(
                 path_or_bytes=log_content.encode("utf-8"),
                 path_in_repo="logs/last_response.txt",
