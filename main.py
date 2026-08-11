@@ -8,7 +8,7 @@ app = FastAPI(title="AI Business Gateway")
 HF_TOKEN = os.getenv("HF_TOKEN")
 DATASET_REPO = os.getenv("DATASET_REPO")
 
-# استخدام نموذج Qwen المتاح مجاناً
+# استخدام النموذج المدعوم مجاناً
 MODEL_NAME = "Qwen/Qwen2.5-7B-Instruct"
 
 class QueryRequest(BaseModel):
@@ -41,9 +41,10 @@ def generate_response(request: QueryRequest):
     if DATASET_REPO:
         try:
             api = HfApi(token=HF_TOKEN)
-            log_content = f"Prompt: {request.prompt}\nResponse: {generated_text}\n"
+            log_bytes = f"Prompt: {request.prompt}\nResponse: {generated_text}\n".encode("utf-8")
+            
             api.upload_file(
-                path_or_bytes=log_content.encode("utf-8"),
+                path_or_flike=log_bytes,
                 path_in_repo="logs/last_response.txt",
                 repo_id=DATASET_REPO,
                 repo_type="dataset"
