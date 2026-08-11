@@ -9,9 +9,9 @@ app = FastAPI(title="AI Business Gateway")
 HF_TOKEN = os.getenv("HF_TOKEN")
 DATASET_REPO = os.getenv("DATASET_REPO")
 
-# الرابط الجديد المعتمد لـ Hugging Face Inference API
+# الرابط الجديد والنموذج المدعوم مجاناً على Serverless Inference Router
 HF_INFERENCE_URL = "https://router.huggingface.co/hf-inference/v1/chat/completions"
-MODEL_NAME = "mistralai/Mistral-7B-Instruct-v0.2"
+MODEL_NAME = "Qwen/Qwen2.5-7B-Instruct"
 
 class QueryRequest(BaseModel):
     prompt: str
